@@ -1,28 +1,28 @@
 from dotenv import load_dotenv
-from openai import OpenAI
+import anthropic
 import discord
 import os
 
 # Load environment variables from .env file
 load_dotenv()
-OPENAI_KEY = os.getenv('OPENAI_KEY')
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY')
 DISCORD_TOKEN = os.getenv('TOKEN')
 
-# Initialize the OpenAI client
-openai_client = OpenAI(api_key=OPENAI_KEY)
+# Initialize the Anthropic client
+anthropic_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
-def call_openai(question):
-    completion = openai_client.chat.completions.create(
-        model="gpt-4o",
+def call_claude(question):
+    message = anthropic_client.messages.create(
+        model="claude-opus-4-6",
+        max_tokens=1024,
         messages=[
-             {
-                 "role": "user",
-                 "content": f"Respond like a pirate to the following question:  {question}",
+            {
+                "role": "user",
+                "content": f"Respond like a pirate to the following question: {question}",
             },
         ]
     )
-    # Print the response
-    response = completion.choices[0].message.content
+    response = message.content[0].text
     print(response)
     return response
 
@@ -45,11 +45,11 @@ async def on_message(message):
         await message.channel.send('Hello!')
 
     if message.content.startswith('$question'):
-        print(f"Message: {message.content}")                
+        print(f"Message: {message.content}")
         message_content = message.content.split("$question")[1]
-        print(f"Question: {message_content}")    
-        response = call_openai(message_content)   
-        print(f"Assistant: {response}")    
+        print(f"Question: {message_content}")
+        response = call_claude(message_content)
+        print(f"Assistant: {response}")
         print("---")
         await message.channel.send(response)
 
