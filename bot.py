@@ -4,8 +4,6 @@ import discord
 from discord.ext import commands
 from dotenv import load_dotenv
 
-load_dotenv()
-
 
 class CryptoBot(commands.Bot):
     async def setup_hook(self):
@@ -19,8 +17,11 @@ class CryptoBot(commands.Bot):
         print(f"Logged in as {self.user}")
 
 
-intents = discord.Intents.default()
-bot = CryptoBot(command_prefix="!", intents=intents)
-
 if __name__ == "__main__":
-    bot.run(os.getenv("TOKEN"))
+    load_dotenv()
+    token = os.getenv("TOKEN")
+    if not token:
+        raise RuntimeError("TOKEN environment variable is not set.")
+    intents = discord.Intents.default()
+    bot = CryptoBot(command_prefix="!", intents=intents)
+    bot.run(token)
