@@ -1,3 +1,5 @@
+import os
+
 import requests
 
 from config import SUPPORTED_COINS, TIMEFRAME_TO_DAYS
@@ -5,6 +7,13 @@ from config import SUPPORTED_COINS, TIMEFRAME_TO_DAYS
 
 class CoinGeckoClient:
     BASE_URL = "https://api.coingecko.com/api/v3"
+
+    def __init__(self):
+        self._api_key = os.getenv("COINGECKO")
+
+    def _auth_params(self) -> dict:
+        """Return API key param if configured, else empty dict."""
+        return {"x_cg_demo_api_key": self._api_key} if self._api_key else {}
 
     def _ticker_to_id(self, ticker: str) -> str:
         """Map ticker symbol to CoinGecko coin ID. Falls back to lowercase ticker."""
@@ -38,7 +47,7 @@ class CoinGeckoClient:
             "per_page": 1,
             "page": 1,
         }
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params={**params, **self._auth_params()}, timeout=10)
         response.raise_for_status()
         data = response.json()
 
@@ -83,7 +92,7 @@ class CoinGeckoClient:
         url = f"{self.BASE_URL}/coins/{coin_id}/market_chart"
         params = {"vs_currency": "usd", "days": days}
 
-        response = requests.get(url, params=params, timeout=10)
+        response = requests.get(url, params={**params, **self._auth_params()}, timeout=10)
         response.raise_for_status()
         data = response.json()
 
