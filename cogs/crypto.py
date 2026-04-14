@@ -28,7 +28,7 @@ def _format_large_number(n: float) -> str:
     return f"${n:,.2f}"
 
 
-def _fmt_indicator(value, prefix="$") -> str:
+def _fmt_indicator(value: float | None, prefix: str = "$") -> str:
     if value is None:
         return "N/A"
     return f"{prefix}{value:,.2f}"
@@ -38,10 +38,10 @@ def _rsi_label(rsi) -> str:
     if rsi is None:
         return "N/A"
     if rsi >= 70:
-        return f"{rsi} ⚠️ Overbought"
+        return f"{rsi:.1f} ⚠️ Overbought"
     if rsi <= 30:
-        return f"{rsi} ⚠️ Oversold"
-    return f"{rsi} Neutral"
+        return f"{rsi:.1f} ⚠️ Oversold"
+    return f"{rsi:.1f} Neutral"
 
 
 class CryptoCog(commands.Cog):
@@ -238,11 +238,15 @@ class CryptoCog(commands.Cog):
             await interaction.followup.send(f"❌ Analyst error: {e}")
             return
 
+        # Prepend coin/timeframe header for context
+        header = f"**{coin.upper()} — AI Forecast ({tf})**\n\n"
+        report_with_header = header + report
+
         # Discord message limit is 2000 chars — split if needed
-        if len(report) <= 2000:
-            await interaction.followup.send(report)
+        if len(report_with_header) <= 2000:
+            await interaction.followup.send(report_with_header)
         else:
-            chunks = [report[i:i + 1990] for i in range(0, len(report), 1990)]
+            chunks = [report_with_header[i:i + 1990] for i in range(0, len(report_with_header), 1990)]
             for chunk in chunks:
                 await interaction.followup.send(chunk)
 
