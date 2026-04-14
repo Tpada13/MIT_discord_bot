@@ -125,3 +125,8 @@ def test_ticker_to_id_known_coin(client):
 
 def test_ticker_to_id_unknown_coin_falls_back_to_lowercase(client):
     assert client._ticker_to_id("NEWCOIN") == "newcoin"
+
+
+def test_get_price_data_invalid_timeframe(client):
+    with pytest.raises(ValueError, match="Invalid timeframe"):
+        client.get_price_data("BTC", "banana")

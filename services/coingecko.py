@@ -1,6 +1,6 @@
 import requests
 
-from config import SUPPORTED_COINS
+from config import PRICE_TIMEFRAMES, SUPPORTED_COINS, TIMEFRAME_TO_DAYS
 
 
 class CoinGeckoClient:
@@ -24,6 +24,9 @@ class CoinGeckoClient:
         Raises:
             ValueError: if the coin is not found on CoinGecko.
         """
+        if timeframe not in PRICE_TIMEFRAMES:
+            raise ValueError(f"Invalid timeframe '{timeframe}'. Valid options: {PRICE_TIMEFRAMES}")
+
         coin_id = self._ticker_to_id(ticker)
 
         url = f"{self.BASE_URL}/coins/markets"
@@ -35,7 +38,7 @@ class CoinGeckoClient:
             "per_page": 1,
             "page": 1,
         }
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
 
@@ -49,7 +52,7 @@ class CoinGeckoClient:
         elif timeframe == "7d":
             pct_change = coin.get("price_change_percentage_7d_in_currency") or 0.0
         elif timeframe == "3d":
-            chart = self.get_market_chart(ticker, days=3)
+            chart = self.get_market_chart(ticker, days=TIMEFRAME_TO_DAYS[timeframe])
             prices = chart["close_prices"]
             pct_change = ((prices[-1] - prices[0]) / prices[0]) * 100 if len(prices) >= 2 else 0.0
         else:  # default: 24h
@@ -80,7 +83,7 @@ class CoinGeckoClient:
         url = f"{self.BASE_URL}/coins/{coin_id}/market_chart"
         params = {"vs_currency": "usd", "days": days}
 
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
 
