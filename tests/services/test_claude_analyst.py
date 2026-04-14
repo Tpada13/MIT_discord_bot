@@ -77,6 +77,11 @@ def test_generate_forecast_handles_none_indicators(analyst):
     """None indicators (insufficient data) must not crash — show N/A in prompt."""
     mock_message = MagicMock()
     mock_message.content = [MagicMock(text="forecast with limited data")]
+    captured_kwargs = {}
+
+    def capture(**kwargs):
+        captured_kwargs.update(kwargs)
+        return mock_message
 
     indicators_with_nones = {
         "rsi": None,
@@ -87,10 +92,12 @@ def test_generate_forecast_handles_none_indicators(analyst):
         "volume_trend": "Insufficient data",
     }
 
-    with patch.object(analyst.client.messages, "create", return_value=mock_message):
+    with patch.object(analyst.client.messages, "create", side_effect=capture):
         result = analyst.generate_forecast(make_price_data(), indicators_with_nones)
 
     assert isinstance(result, str)
+    prompt_text = captured_kwargs["messages"][0]["content"]
+    assert "N/A" in prompt_text
 
 
 def test_generate_forecast_includes_derived_signals(analyst):
@@ -108,3 +115,26 @@ def test_generate_forecast_includes_derived_signals(analyst):
 
     prompt_text = captured_kwargs["messages"][0]["content"]
     assert "DERIVED SIGNALS" in prompt_text
+
+
+def test_generate_forecast_derived_signals_values(analyst):
+    """Derived signal values (ABOVE/BELOW, MACD, trend) must be computed correctly."""
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text="forecast")]
+    captured_kwargs = {}
+
+    def capture(**kwargs):
+        captured_kwargs.update(kwargs)
+        return mock_message
+
+    # price=50000 > sma20=48500 and sma50=45000 → ABOVE both → Bullish trend
+    # ema12=49800 > ema26=47500 → macd=+2300 → Bullish momentum
+    with patch.object(analyst.client.messages, "create", side_effect=capture):
+        analyst.generate_forecast(make_price_data(), make_indicators())
+
+    prompt_text = captured_kwargs["messages"][0]["content"]
+    assert "Price vs SMA20: ABOVE" in prompt_text
+    assert "Price vs SMA50: ABOVE" in prompt_text
+    assert "+$2,300.00" in prompt_text
+    assert "Bullish momentum" in prompt_text
+    assert "Trend Structure: Bullish" in prompt_text

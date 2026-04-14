@@ -10,6 +10,8 @@ from config import (
     SYSTEM_PROMPT,
 )
 
+_MODEL = "claude-opus-4-6"
+
 
 def _fmt(value, prefix="$", decimals=2) -> str:
     """Format a numeric indicator value, returning 'N/A' if None."""
@@ -54,7 +56,12 @@ class ClaudeAnalyst:
         if ema12 is not None and ema26 is not None:
             macd = ema12 - ema26
             macd_value = f"+${macd:,.2f}" if macd >= 0 else f"-${abs(macd):,.2f}"
-            macd_signal = "Bullish momentum" if macd >= 0 else "Bearish momentum"
+            if macd > 0:
+                macd_signal = "Bullish momentum"
+            elif macd < 0:
+                macd_signal = "Bearish momentum"
+            else:
+                macd_signal = "Neutral (no divergence)"
         else:
             macd_value = "N/A"
             macd_signal = "N/A"
@@ -66,6 +73,8 @@ class ClaudeAnalyst:
                 trend_structure = "Bearish"
             else:
                 trend_structure = "Mixed"
+        elif sma20 is not None:
+            trend_structure = f"Partial — price {'above' if price > sma20 else 'below'} SMA20, SMA50 unavailable"
         else:
             trend_structure = "Insufficient data"
 
@@ -102,7 +111,7 @@ class ClaudeAnalyst:
 
         # --- terminal debug logging ---
         print("========== CLAUDE API CALL ==========")
-        print(f"Model:      claude-opus-4-6")
+        print(f"Model:      {_MODEL}")
         print(f"Max tokens: 1024")
         print("\n--- SYSTEM PROMPT ---")
         print(SYSTEM_PROMPT)
@@ -111,7 +120,7 @@ class ClaudeAnalyst:
         print("=====================================")
 
         message = self.client.messages.create(
-            model="claude-opus-4-6",
+            model=_MODEL,
             max_tokens=1024,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": prompt}],
