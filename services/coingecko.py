@@ -1,6 +1,6 @@
 import requests
 
-from config import PRICE_TIMEFRAMES, SUPPORTED_COINS, TIMEFRAME_TO_DAYS
+from config import SUPPORTED_COINS, TIMEFRAME_TO_DAYS
 
 
 class CoinGeckoClient:
@@ -15,17 +15,17 @@ class CoinGeckoClient:
         Fetch current price and % change over the requested timeframe.
 
         For 1h/24h/7d: single call to /coins/markets (CoinGecko provides these natively).
-        For 3d: two calls — /coins/markets for current data + /coins/{id}/market_chart
-                for historical prices to calculate the 3-day change.
+        For 3d/30d/90d/180d: two calls — /coins/markets for current data +
+                /coins/{id}/market_chart for historical prices to calculate the change.
 
         Returns:
             {ticker, current_price, price_change_pct, market_cap, volume_24h, timeframe}
 
         Raises:
-            ValueError: if the coin is not found on CoinGecko.
+            ValueError: if the timeframe is unsupported or the coin is not found on CoinGecko.
         """
-        if timeframe not in PRICE_TIMEFRAMES:
-            raise ValueError(f"Invalid timeframe '{timeframe}'. Valid options: {PRICE_TIMEFRAMES}")
+        if timeframe not in TIMEFRAME_TO_DAYS:
+            raise ValueError(f"Invalid timeframe '{timeframe}'. Valid options: {list(TIMEFRAME_TO_DAYS.keys())}")
 
         coin_id = self._ticker_to_id(ticker)
 
@@ -51,11 +51,11 @@ class CoinGeckoClient:
             pct_change = coin.get("price_change_percentage_1h_in_currency") or 0.0
         elif timeframe == "7d":
             pct_change = coin.get("price_change_percentage_7d_in_currency") or 0.0
-        elif timeframe == "3d":
+        elif timeframe in ("3d", "30d", "90d", "180d"):
             chart = self.get_market_chart(ticker, days=TIMEFRAME_TO_DAYS[timeframe])
             prices = chart["close_prices"]
             pct_change = ((prices[-1] - prices[0]) / prices[0]) * 100 if len(prices) >= 2 else 0.0
-        else:  # default: 24h
+        else:  # 24h
             pct_change = coin.get("price_change_percentage_24h_in_currency") or 0.0
 
         return {
