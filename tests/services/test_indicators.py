@@ -109,3 +109,22 @@ def test_volume_trend_declining_when_recent_volumes_lower():
     result = calculate_indicators(make_prices(50), high_volumes + low_volumes)
 
     assert "Declining" in result["volume_trend"]
+
+
+def test_volume_trend_stable_with_flat_volumes():
+    volumes = [1_000_000.0] * 60
+    result = calculate_indicators(make_prices(60), volumes)
+    assert "Stable" in result["volume_trend"]
+    assert "+0%" in result["volume_trend"]
+
+
+def test_sma20_value_matches_expected():
+    prices = make_prices(60)  # [100, 101, ..., 159]
+    result = calculate_indicators(prices, make_volumes(60))
+    assert result["sma20"] == 149.5
+
+
+def test_sma50_value_matches_expected():
+    prices = make_prices(60)
+    result = calculate_indicators(prices, make_volumes(60))
+    assert result["sma50"] == 134.5
