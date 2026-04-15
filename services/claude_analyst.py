@@ -162,9 +162,8 @@ class ClaudeAnalyst:
             return "Neutral"
 
         timeframe = price_data_a.get("timeframe", "30d")
-        assert price_data_a.get("timeframe") == price_data_b.get("timeframe"), (
-            "Both coins must use the same timeframe for a valid comparison"
-        )
+        if price_data_a.get("timeframe") != price_data_b.get("timeframe"):
+            raise ValueError("Both coins must use the same timeframe for a valid comparison")
 
         description_a = COIN_DESCRIPTIONS.get(ticker_a, f"{ticker_a} - cryptocurrency")
         description_b = COIN_DESCRIPTIONS.get(ticker_b, f"{ticker_b} - cryptocurrency")
