@@ -161,12 +161,10 @@ class ClaudeAnalyst:
                 return f"Bearish (-${abs(diff):,.2f})"
             return "Neutral"
 
-        def _fmt_indicator(value) -> str:
-            if value is None:
-                return "N/A"
-            return f"${value:,.2f}"
-
         timeframe = price_data_a.get("timeframe", "30d")
+        assert price_data_a.get("timeframe") == price_data_b.get("timeframe"), (
+            "Both coins must use the same timeframe for a valid comparison"
+        )
 
         description_a = COIN_DESCRIPTIONS.get(ticker_a, f"{ticker_a} - cryptocurrency")
         description_b = COIN_DESCRIPTIONS.get(ticker_b, f"{ticker_b} - cryptocurrency")
@@ -180,13 +178,13 @@ class ClaudeAnalyst:
             price_a=price_data_a["current_price"],
             change_a=price_data_a["price_change_pct"],
             rsi_a=indicators_a["rsi"] if indicators_a["rsi"] is not None else "N/A",
-            sma20_a=_fmt_indicator(indicators_a["sma20"]),
+            sma20_a=_fmt(indicators_a["sma20"]),
             macd_signal_a=_macd_signal(indicators_a),
             vol_trend_a=indicators_a["volume_trend"],
             price_b=price_data_b["current_price"],
             change_b=price_data_b["price_change_pct"],
             rsi_b=indicators_b["rsi"] if indicators_b["rsi"] is not None else "N/A",
-            sma20_b=_fmt_indicator(indicators_b["sma20"]),
+            sma20_b=_fmt(indicators_b["sma20"]),
             macd_signal_b=_macd_signal(indicators_b),
             vol_trend_b=indicators_b["volume_trend"],
         )
@@ -198,6 +196,6 @@ class ClaudeAnalyst:
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
             )
-            return message.content[0].text
+            return message.content[0].text + DISCLAIMER
         except Exception:
-            return f"Comparison unavailable — could not reach analyst. Check individual /forecast for each coin."
+            return "Comparison unavailable — could not reach analyst. Check individual /forecast for each coin."

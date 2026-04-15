@@ -190,7 +190,7 @@ def test_compare_coins_includes_both_tickers_in_prompt(analyst):
 
 
 def test_compare_coins_fallback_on_api_error(analyst):
-    """If the Claude API raises, compare_coins returns a fallback string."""
+    """If the Claude API raises, compare_coins returns a fallback string mentioning /forecast."""
     with patch.object(analyst.client.messages, "create", side_effect=Exception("API error")):
         result = analyst.compare_coins(
             "BTC", make_price_data_for("BTC"), make_indicators(),
@@ -198,4 +198,56 @@ def test_compare_coins_fallback_on_api_error(analyst):
         )
 
     assert isinstance(result, str)
-    assert len(result) > 0
+    assert "/forecast" in result
+
+
+def test_compare_coins_macd_signal_in_prompt(analyst):
+    """MACD signal string must be computed correctly and appear in the prompt."""
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text="verdict")]
+    captured_kwargs = {}
+
+    def capture(**kwargs):
+        captured_kwargs.update(kwargs)
+        return mock_message
+
+    # ema12=49800 > ema26=47500 → diff=+2300 → Bullish
+    with patch.object(analyst.client.messages, "create", side_effect=capture):
+        analyst.compare_coins(
+            "BTC", make_price_data_for("BTC"), make_indicators(),
+            "ETH", make_price_data_for("ETH", price=3000.0, change=-1.2), make_indicators(),
+        )
+
+    prompt_text = captured_kwargs["messages"][0]["content"]
+    assert "Bullish" in prompt_text
+    assert "2,300.00" in prompt_text
+
+
+def test_compare_coins_handles_none_indicators(analyst):
+    """None indicator values must not crash — should appear as N/A in prompt."""
+    mock_message = MagicMock()
+    mock_message.content = [MagicMock(text="verdict")]
+    captured_kwargs = {}
+
+    def capture(**kwargs):
+        captured_kwargs.update(kwargs)
+        return mock_message
+
+    none_indicators = {
+        "rsi": None,
+        "sma20": None,
+        "sma50": None,
+        "ema12": None,
+        "ema26": None,
+        "volume_trend": "Insufficient data",
+    }
+
+    with patch.object(analyst.client.messages, "create", side_effect=capture):
+        result = analyst.compare_coins(
+            "BTC", make_price_data_for("BTC"), make_indicators(),
+            "ETH", make_price_data_for("ETH", price=3000.0, change=-1.2), none_indicators,
+        )
+
+    assert isinstance(result, str)
+    prompt_text = captured_kwargs["messages"][0]["content"]
+    assert "N/A" in prompt_text
