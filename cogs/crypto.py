@@ -284,6 +284,10 @@ class CryptoCog(commands.Cog):
         ticker_a = coin1.upper()
         ticker_b = coin2.upper()
 
+        if ticker_a == ticker_b:
+            await interaction.followup.send("❌ Please choose two different coins to compare.")
+            return
+
         # Fetch data for both coins (sequential — CoinGecko free tier rate limits)
         try:
             price_a = self.coingecko.get_price_data(ticker_a, tf)
@@ -308,10 +312,14 @@ class CryptoCog(commands.Cog):
         ind_a = calculate_indicators(chart_a["close_prices"], chart_a["volumes"])
         ind_b = calculate_indicators(chart_b["close_prices"], chart_b["volumes"])
 
-        verdict = self.analyst.compare_coins(
-            ticker_a, price_a, ind_a,
-            ticker_b, price_b, ind_b,
-        )
+        try:
+            verdict = self.analyst.compare_coins(
+                ticker_a, price_a, ind_a,
+                ticker_b, price_b, ind_b,
+            )
+        except Exception as e:
+            await interaction.followup.send(f"❌ Analyst error: {e}")
+            return
 
         def coin_fields(ticker: str, price_data: dict, ind: dict) -> list[tuple]:
             change = price_data["price_change_pct"]

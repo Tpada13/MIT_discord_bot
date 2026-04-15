@@ -110,16 +110,6 @@ class ClaudeAnalyst:
             derived_signals=derived_signals,
         )
 
-        # --- terminal debug logging ---
-        print("========== CLAUDE API CALL ==========")
-        print(f"Model:      {_MODEL}")
-        print(f"Max tokens: 1024")
-        print("\n--- SYSTEM PROMPT ---")
-        print(SYSTEM_PROMPT)
-        print("\n--- USER MESSAGE ---")
-        print(prompt)
-        print("=====================================")
-
         message = self.client.messages.create(
             model=_MODEL,
             max_tokens=1024,
