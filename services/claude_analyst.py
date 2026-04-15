@@ -4,6 +4,7 @@ import anthropic
 
 from config import (
     COIN_DESCRIPTIONS,
+    COMPARE_TEMPLATE,
     DERIVED_SIGNALS_TEMPLATE,
     DISCLAIMER,
     FORECAST_TEMPLATE,
@@ -127,3 +128,76 @@ class ClaudeAnalyst:
         )
 
         return message.content[0].text + DISCLAIMER
+
+    def compare_coins(
+        self,
+        ticker_a: str,
+        price_data_a: dict,
+        indicators_a: dict,
+        ticker_b: str,
+        price_data_b: dict,
+        indicators_b: dict,
+    ) -> str:
+        """
+        Call Claude to produce a 1-2 sentence verdict on which coin looks technically stronger.
+
+        Args:
+            ticker_a / ticker_b: coin ticker symbols (e.g. "BTC")
+            price_data_a / price_data_b: output of CoinGeckoClient.get_price_data()
+            indicators_a / indicators_b: output of calculate_indicators()
+
+        Returns:
+            Verdict string. Falls back to a neutral message if the API call fails.
+        """
+        def _macd_signal(ind: dict) -> str:
+            ema12 = ind.get("ema12")
+            ema26 = ind.get("ema26")
+            if ema12 is None or ema26 is None:
+                return "N/A"
+            diff = ema12 - ema26
+            if diff > 0:
+                return f"Bullish (+${diff:,.2f})"
+            if diff < 0:
+                return f"Bearish (-${abs(diff):,.2f})"
+            return "Neutral"
+
+        def _fmt_indicator(value) -> str:
+            if value is None:
+                return "N/A"
+            return f"${value:,.2f}"
+
+        timeframe = price_data_a.get("timeframe", "30d")
+
+        description_a = COIN_DESCRIPTIONS.get(ticker_a, f"{ticker_a} - cryptocurrency")
+        description_b = COIN_DESCRIPTIONS.get(ticker_b, f"{ticker_b} - cryptocurrency")
+
+        prompt = COMPARE_TEMPLATE.format(
+            ticker_a=ticker_a,
+            description_a=description_a,
+            ticker_b=ticker_b,
+            description_b=description_b,
+            timeframe=timeframe,
+            price_a=price_data_a["current_price"],
+            change_a=price_data_a["price_change_pct"],
+            rsi_a=indicators_a["rsi"] if indicators_a["rsi"] is not None else "N/A",
+            sma20_a=_fmt_indicator(indicators_a["sma20"]),
+            macd_signal_a=_macd_signal(indicators_a),
+            vol_trend_a=indicators_a["volume_trend"],
+            price_b=price_data_b["current_price"],
+            change_b=price_data_b["price_change_pct"],
+            rsi_b=indicators_b["rsi"] if indicators_b["rsi"] is not None else "N/A",
+            sma20_b=_fmt_indicator(indicators_b["sma20"]),
+            macd_signal_b=_macd_signal(indicators_b),
+            vol_trend_b=indicators_b["volume_trend"],
+        )
+
+        try:
+            message = self.client.messages.create(
+                model=_MODEL,
+                max_tokens=256,
+                system=SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            return message.content[0].text
+        except Exception:
+            return f"Comparison unavailable — could not reach analyst. Check individual /forecast for each coin."
