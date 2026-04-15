@@ -6,6 +6,7 @@ from discord.ext import commands
 
 from config import (
     ANALYSIS_TIMEFRAMES,
+    COIN_DESCRIPTIONS,
     DEFAULT_ANALYSIS_TIMEFRAME,
     DEFAULT_PRICE_TIMEFRAME,
     PRICE_TIMEFRAMES,
@@ -232,8 +233,9 @@ class CryptoCog(commands.Cog):
 
         indicators = calculate_indicators(chart["close_prices"], chart["volumes"])
 
+        coin_description = COIN_DESCRIPTIONS.get(coin.upper())
         try:
-            report = self.analyst.generate_forecast(price_data, indicators)
+            report = self.analyst.generate_forecast(price_data, indicators, coin_description)
         except Exception as e:
             await interaction.followup.send(f"❌ Analyst error: {e}")
             return
