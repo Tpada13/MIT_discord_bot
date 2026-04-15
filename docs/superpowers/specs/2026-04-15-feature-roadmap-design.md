@@ -1,5 +1,29 @@
 # Feature Roadmap — MIT Crypto Discord Bot
 
+> **For a fresh session:** Read this section first, then pick up from the Implementation Order table to find the next unbuilt feature.
+>
+> **Repo:** https://github.com/Tpada13/MIT_discord_bot  
+> **Clone:** `git clone https://github.com/Tpada13/MIT_discord_bot.git && cd MIT_discord_bot`  
+> **Install:** `pip install -r requirements.txt`  
+> **Run tests:** `pytest` (all tests must pass before and after each feature)  
+> **Run bot:** `python bot.py` (requires `.env` — see README.md for env var details)
+>
+> **Workflow:**
+> 1. Check the Implementation Order table below for the next feature (lowest task number not yet on `main`).
+> 2. Create a feature branch: `git checkout -b feature/task-<N>-<short-description>` from `main`.
+> 3. Implement the feature as specified in its section below.
+> 4. Run `pytest` — all tests must pass.
+> 5. Push the branch and create a PR targeting `main`. Tag the user for review before merging.
+>
+> **Key files to understand first:**
+> - `bot.py` — entry point; loads cogs and instantiates services
+> - `cogs/crypto.py` — all current slash commands
+> - `services/coingecko.py` — CoinGecko API client
+> - `services/indicators.py` — RSI, SMA, EMA calculations
+> - `services/claude_analyst.py` — Anthropic Claude forecast generation
+> - `config.py` — supported coins, timeframes, Claude prompt constants
+> - `README.md` — setup and project structure overview
+
 **Date:** 2026-04-15  
 **Status:** Approved for implementation  
 **Branch convention:** `feature/task-<N>-<short-description>`
