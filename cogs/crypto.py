@@ -78,6 +78,11 @@ class CryptoCog(commands.Cog):
             value=f"AI analyst report (Claude). Timeframes: {', '.join(ANALYSIS_TIMEFRAMES)} (default: {DEFAULT_ANALYSIS_TIMEFRAME})",
             inline=False,
         )
+        embed.add_field(
+            name="/compare <coin1> <coin2> [timeframe]",
+            value=f"Side-by-side comparison + Claude verdict. Timeframes: {', '.join(ANALYSIS_TIMEFRAMES)} (default: {DEFAULT_ANALYSIS_TIMEFRAME})",
+            inline=False,
+        )
         embed.add_field(name="Supported Coins", value=coin_list, inline=False)
         embed.set_footer(text="Data: CoinGecko (free) | Analysis: Anthropic Claude")
         await interaction.response.send_message(embed=embed)
@@ -251,6 +256,105 @@ class CryptoCog(commands.Cog):
             chunks = [report_with_header[i:i + 1990] for i in range(0, len(report_with_header), 1990)]
             for chunk in chunks:
                 await interaction.followup.send(chunk)
+
+    # -------------------------------------------------------------------------
+    # /compare
+    # -------------------------------------------------------------------------
+
+    @app_commands.command(name="compare", description="Side-by-side technical comparison of two coins")
+    @app_commands.describe(
+        coin1="First coin ticker, e.g. BTC",
+        coin2="Second coin ticker, e.g. ETH",
+        timeframe="Analysis period (default: 30d)",
+    )
+    @app_commands.choices(
+        timeframe=[
+            app_commands.Choice(name="7 days", value="7d"),
+            app_commands.Choice(name="30 days", value="30d"),
+            app_commands.Choice(name="90 days", value="90d"),
+            app_commands.Choice(name="180 days", value="180d"),
+        ]
+    )
+    async def compare(
+        self,
+        interaction: discord.Interaction,
+        coin1: str,
+        coin2: str,
+        timeframe: app_commands.Choice[str] = None,
+    ):
+        await interaction.response.defer()
+        tf = timeframe.value if timeframe else DEFAULT_ANALYSIS_TIMEFRAME
+        days = TIMEFRAME_TO_DAYS[tf]
+
+        ticker_a = coin1.upper()
+        ticker_b = coin2.upper()
+
+        if ticker_a == ticker_b:
+            await interaction.followup.send("❌ Please choose two different coins to compare.")
+            return
+
+        # Fetch data for both coins (sequential — CoinGecko free tier rate limits)
+        try:
+            price_a = self.coingecko.get_price_data(ticker_a, tf)
+            chart_a = self.coingecko.get_market_chart(ticker_a, days)
+        except ValueError as e:
+            await interaction.followup.send(f"❌ {ticker_a}: {e}")
+            return
+        except Exception as e:
+            await interaction.followup.send(f"❌ CoinGecko error for {ticker_a}: {e}")
+            return
+
+        try:
+            price_b = self.coingecko.get_price_data(ticker_b, tf)
+            chart_b = self.coingecko.get_market_chart(ticker_b, days)
+        except ValueError as e:
+            await interaction.followup.send(f"❌ {ticker_b}: {e}")
+            return
+        except Exception as e:
+            await interaction.followup.send(f"❌ CoinGecko error for {ticker_b}: {e}")
+            return
+
+        ind_a = calculate_indicators(chart_a["close_prices"], chart_a["volumes"])
+        ind_b = calculate_indicators(chart_b["close_prices"], chart_b["volumes"])
+
+        try:
+            verdict = self.analyst.compare_coins(
+                ticker_a, price_a, ind_a,
+                ticker_b, price_b, ind_b,
+            )
+        except Exception as e:
+            await interaction.followup.send(f"❌ Analyst error: {e}")
+            return
+
+        def coin_fields(ticker: str, price_data: dict, ind: dict) -> list[tuple]:
+            change = price_data["price_change_pct"]
+            arrow = "▲" if change >= 0 else "▼"
+            return [
+                (f"{ticker} Price", f"${price_data['current_price']:,.4f}", True),
+                (f"{ticker} Change ({tf})", f"{arrow} {abs(change):.2f}%", True),
+                (f"{ticker} RSI (14)", _rsi_label(ind["rsi"]), True),
+                (f"{ticker} SMA 20", _fmt_indicator(ind["sma20"]), True),
+                (f"{ticker} EMA 12", _fmt_indicator(ind["ema12"]), True),
+                (f"{ticker} Volume", ind["volume_trend"], True),
+            ]
+
+        embed = discord.Embed(
+            title=f"{ticker_a} vs {ticker_b} — Comparison ({tf})",
+            color=discord.Color.blurple(),
+            timestamp=datetime.now(timezone.utc),
+        )
+        for name, value, inline in coin_fields(ticker_a, price_a, ind_a):
+            embed.add_field(name=name, value=value, inline=inline)
+
+        embed.add_field(name="\u200b", value="\u200b", inline=False)  # spacer
+
+        for name, value, inline in coin_fields(ticker_b, price_b, ind_b):
+            embed.add_field(name=name, value=value, inline=inline)
+
+        embed.add_field(name="Analyst Verdict", value=verdict, inline=False)
+        embed.set_footer(text="Data: CoinGecko | Analysis: Anthropic Claude")
+
+        await interaction.followup.send(embed=embed)
 
 
 async def setup(bot: commands.Bot):
