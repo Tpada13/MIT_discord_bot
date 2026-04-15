@@ -140,3 +140,24 @@ COIN_DESCRIPTIONS = {
     "CRV":  "Curve Finance - decentralized stablecoin exchange, dominant in DeFi liquidity",
     "SEI":  "Sei - L1 blockchain optimized for trading and order-book DEXs",
 }
+
+COMPARE_TEMPLATE = """\
+Compare {ticker_a} and {ticker_b} based on their {timeframe} technical data.
+
+{ticker_a} ({description_a}):
+- Price: ${price_a:,.4f} ({change_a:+.2f}% over {timeframe})
+- RSI (14): {rsi_a}
+- SMA20: {sma20_a}
+- EMA12 vs EMA26: {macd_signal_a}
+- Volume Trend: {vol_trend_a}
+
+{ticker_b} ({description_b}):
+- Price: ${price_b:,.4f} ({change_b:+.2f}% over {timeframe})
+- RSI (14): {rsi_b}
+- SMA20: {sma20_b}
+- EMA12 vs EMA26: {macd_signal_b}
+- Volume Trend: {vol_trend_b}
+
+In 1-2 concise sentences, state which coin looks technically stronger right now and why. \
+If signals conflict or are too close to call, say so explicitly.\
+"""
