@@ -78,6 +78,11 @@ class CryptoCog(commands.Cog):
             value=f"AI analyst report (Claude). Timeframes: {', '.join(ANALYSIS_TIMEFRAMES)} (default: {DEFAULT_ANALYSIS_TIMEFRAME})",
             inline=False,
         )
+        embed.add_field(
+            name="/compare <coin1> <coin2> [timeframe]",
+            value=f"Side-by-side comparison + Claude verdict. Timeframes: {', '.join(ANALYSIS_TIMEFRAMES)} (default: {DEFAULT_ANALYSIS_TIMEFRAME})",
+            inline=False,
+        )
         embed.add_field(name="Supported Coins", value=coin_list, inline=False)
         embed.set_footer(text="Data: CoinGecko (free) | Analysis: Anthropic Claude")
         await interaction.response.send_message(embed=embed)
