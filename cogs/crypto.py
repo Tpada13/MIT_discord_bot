@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 import discord
@@ -16,6 +17,8 @@ from config import (
 from services.claude_analyst import ClaudeAnalyst
 from services.coingecko import CoinGeckoClient
 from services.indicators import calculate_indicators
+
+_log = logging.getLogger(__name__)
 
 
 def _format_large_number(n: float) -> str:
@@ -43,6 +46,57 @@ def _rsi_label(rsi) -> str:
     if rsi <= 30:
         return f"{rsi:.1f} ⚠️ Oversold"
     return f"{rsi:.1f} Neutral"
+
+
+def _format_market_block(rows: list[dict], failed: list[str]) -> str:
+    """
+    Sort rows by price_change_pct descending, append failed tickers,
+    and return a monospace code-block string for a Discord embed field.
+
+    rows: list of {ticker: str, current_price: float, price_change_pct: float}
+    failed: list of ticker strings that could not be fetched
+    """
+    sorted_rows = sorted(rows, key=lambda r: r["price_change_pct"], reverse=True)
+
+    lines = []
+    for row in sorted_rows:
+        ticker = row["ticker"].ljust(4)
+        price = f"${row['current_price']:>14,.4f}"
+        arrow = "▲" if row["price_change_pct"] >= 0 else "▼"
+        change_str = f"{arrow}  {abs(row['price_change_pct']):>6.2f}%"
+        lines.append(f"{ticker}  {price}   {change_str}")
+
+    for ticker in failed:
+        lines.append(f"{ticker.ljust(4)}  {'':>15}   —  (unavailable)")
+
+    return "```\n" + "\n".join(lines) + "\n```"
+
+
+def _build_market_rows(
+    coins: list[str],
+    coingecko: "CoinGeckoClient",
+) -> tuple[list[dict], list[str]]:
+    """
+    Fetch 24h price data for each coin sequentially (no parallelism —
+    CoinGecko free tier rate-limits aggressively).
+
+    Returns (successful_rows, failed_tickers).
+    successful_rows: list of {ticker, current_price, price_change_pct}
+    """
+    rows = []
+    failed = []
+    for coin in coins:
+        try:
+            data = coingecko.get_price_data(coin, "24h")
+            rows.append({
+                "ticker": data["ticker"],
+                "current_price": data["current_price"],
+                "price_change_pct": data["price_change_pct"],
+            })
+        except Exception as exc:
+            _log.warning("_build_market_rows: failed to fetch %s: %r", coin, exc)
+            failed.append(coin)
+    return rows, failed
 
 
 class CryptoCog(commands.Cog):
@@ -81,6 +135,11 @@ class CryptoCog(commands.Cog):
         embed.add_field(
             name="/compare <coin1> <coin2> [timeframe]",
             value=f"Side-by-side comparison + Claude verdict. Timeframes: {', '.join(ANALYSIS_TIMEFRAMES)} (default: {DEFAULT_ANALYSIS_TIMEFRAME})",
+            inline=False,
+        )
+        embed.add_field(
+            name="/market",
+            value="All supported coins sorted by 24h % change",
             inline=False,
         )
         embed.add_field(name="Supported Coins", value=coin_list, inline=False)
@@ -354,6 +413,40 @@ class CryptoCog(commands.Cog):
         embed.add_field(name="Analyst Verdict", value=verdict, inline=False)
         embed.set_footer(text="Data: CoinGecko | Analysis: Anthropic Claude")
 
+        await interaction.followup.send(embed=embed)
+
+    # -------------------------------------------------------------------------
+    # /market
+    # -------------------------------------------------------------------------
+
+    @app_commands.command(name="market", description="Market snapshot: all coins sorted by 24h % change")
+    async def market(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
+        rows, failed = _build_market_rows(list(SUPPORTED_COINS.keys()), self.coingecko)
+
+        if not rows:
+            await interaction.followup.send("❌ Unable to fetch market data. Please try again later.")
+            return
+
+        block = _format_market_block(rows, failed)
+
+        gainers = sum(1 for r in rows if r["price_change_pct"] >= 0)
+        losers = len(rows) - gainers
+        if gainers > losers:
+            color = discord.Color.green()
+        elif losers > gainers:
+            color = discord.Color.red()
+        else:
+            color = discord.Color.light_grey()
+
+        embed = discord.Embed(
+            title="Market Snapshot — 24h Change",
+            color=color,
+            timestamp=datetime.now(timezone.utc),
+        )
+        embed.add_field(name="\u200b", value=block, inline=False)
+        embed.set_footer(text="Data: CoinGecko | Sorted by 24h % change")
         await interaction.followup.send(embed=embed)
 
 
