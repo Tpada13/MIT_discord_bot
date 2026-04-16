@@ -45,6 +45,30 @@ def _rsi_label(rsi) -> str:
     return f"{rsi:.1f} Neutral"
 
 
+def _format_market_block(rows: list[dict], failed: list[str]) -> str:
+    """
+    Sort rows by price_change_pct descending, append failed tickers,
+    and return a monospace code-block string for a Discord embed field.
+
+    rows: list of {ticker: str, current_price: float, price_change_pct: float}
+    failed: list of ticker strings that could not be fetched
+    """
+    sorted_rows = sorted(rows, key=lambda r: r["price_change_pct"], reverse=True)
+
+    lines = []
+    for row in sorted_rows:
+        ticker = row["ticker"].ljust(4)
+        price = f"${row['current_price']:>14,.4f}"
+        arrow = "▲" if row["price_change_pct"] >= 0 else "▼"
+        change_str = f"{arrow}  {abs(row['price_change_pct']):>6.2f}%"
+        lines.append(f"{ticker}  {price}   {change_str}")
+
+    for ticker in failed:
+        lines.append(f"{ticker.ljust(4)}  {'':>14}   —  (unavailable)")
+
+    return "```\n" + "\n".join(lines) + "\n```"
+
+
 class CryptoCog(commands.Cog):
     def __init__(self, bot: commands.Bot, coingecko: CoinGeckoClient, analyst: ClaudeAnalyst):
         self.bot = bot
