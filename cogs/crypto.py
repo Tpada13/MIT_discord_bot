@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 import discord
@@ -16,6 +17,8 @@ from config import (
 from services.claude_analyst import ClaudeAnalyst
 from services.coingecko import CoinGeckoClient
 from services.indicators import calculate_indicators
+
+_log = logging.getLogger(__name__)
 
 
 def _format_large_number(n: float) -> str:
@@ -90,7 +93,8 @@ def _build_market_rows(
                 "current_price": data["current_price"],
                 "price_change_pct": data["price_change_pct"],
             })
-        except Exception:
+        except Exception as exc:
+            _log.warning("_build_market_rows: failed to fetch %s: %r", coin, exc)
             failed.append(coin)
     return rows, failed
 
