@@ -64,7 +64,7 @@ def _format_market_block(rows: list[dict], failed: list[str]) -> str:
         lines.append(f"{ticker}  {price}   {change_str}")
 
     for ticker in failed:
-        lines.append(f"{ticker.ljust(4)}  {'':>14}   —  (unavailable)")
+        lines.append(f"{ticker.ljust(4)}  {'':>15}   —  (unavailable)")
 
     return "```\n" + "\n".join(lines) + "\n```"
 
