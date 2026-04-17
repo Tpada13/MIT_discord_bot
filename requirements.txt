@@ -4,5 +4,6 @@ anthropic
 requests
 pandas
 pandas-ta
+matplotlib
 pytest
 pytest-asyncio

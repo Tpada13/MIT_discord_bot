@@ -1,3 +1,4 @@
+import io
 import logging
 from datetime import datetime, timezone
 
@@ -14,6 +15,7 @@ from config import (
     SUPPORTED_COINS,
     TIMEFRAME_TO_DAYS,
 )
+from services.chart import generate_price_chart
 from services.claude_analyst import ClaudeAnalyst
 from services.coingecko import CoinGeckoClient
 from services.fear_greed import FearGreedClient
@@ -147,6 +149,11 @@ class CryptoCog(commands.Cog):
         embed.add_field(
             name="/feargreed",
             value="Crypto Fear & Greed Index (0–100 sentiment score)",
+            inline=False,
+        )
+        embed.add_field(
+            name="/chart <coin> [timeframe]",
+            value=f"Price + volume chart (PNG). Timeframes: {', '.join(ANALYSIS_TIMEFRAMES)} (default: {DEFAULT_ANALYSIS_TIMEFRAME})",
             inline=False,
         )
         embed.add_field(name="Supported Coins", value=coin_list, inline=False)
@@ -494,6 +501,70 @@ class CryptoCog(commands.Cog):
         )
         embed.set_footer(text=f"Data: Alternative.me | Updated: {data['timestamp']}")
         await interaction.followup.send(embed=embed)
+
+
+    # -------------------------------------------------------------------------
+    # /chart
+    # -------------------------------------------------------------------------
+
+    @app_commands.command(name="chart", description="Price + volume chart as PNG attachment")
+    @app_commands.describe(
+        coin="Coin ticker, e.g. BTC, ETH, SOL",
+        timeframe="Chart period (default: 30d)",
+    )
+    @app_commands.choices(
+        timeframe=[
+            app_commands.Choice(name="7 days", value="7d"),
+            app_commands.Choice(name="30 days", value="30d"),
+            app_commands.Choice(name="90 days", value="90d"),
+            app_commands.Choice(name="180 days", value="180d"),
+        ]
+    )
+    async def chart(
+        self,
+        interaction: discord.Interaction,
+        coin: str,
+        timeframe: app_commands.Choice[str] = None,
+    ):
+        await interaction.response.defer()
+        tf = timeframe.value if timeframe else DEFAULT_ANALYSIS_TIMEFRAME
+        days = TIMEFRAME_TO_DAYS[tf]
+        ticker = coin.upper()
+
+        try:
+            price_data = self.coingecko.get_price_data(ticker, tf)
+            chart_data = self.coingecko.get_market_chart(ticker, days)
+        except ValueError as e:
+            await interaction.followup.send(f"❌ {e}")
+            return
+        except Exception as e:
+            await interaction.followup.send(f"❌ CoinGecko error: {e}")
+            return
+
+        indicators = calculate_indicators(chart_data["close_prices"], chart_data["volumes"])
+
+        png_bytes = generate_price_chart(ticker, chart_data["close_prices"], chart_data["volumes"], tf)
+        file = discord.File(fp=io.BytesIO(png_bytes), filename=f"{ticker}_{tf}_chart.png")
+
+        change = price_data["price_change_pct"]
+        color = discord.Color.green() if change >= 0 else discord.Color.red()
+        arrow = "▲" if change >= 0 else "▼"
+
+        embed = discord.Embed(
+            title=f"{ticker} — Price Chart ({tf})",
+            color=color,
+            timestamp=datetime.now(timezone.utc),
+        )
+        embed.add_field(name="Current Price", value=f"${price_data['current_price']:,.4f}", inline=True)
+        embed.add_field(name=f"Change ({tf})", value=f"{arrow} {abs(change):.2f}%", inline=True)
+        embed.add_field(name="\u200b", value="\u200b", inline=True)
+        embed.add_field(name="RSI (14)", value=_rsi_label(indicators["rsi"]), inline=True)
+        embed.add_field(name="SMA 20", value=_fmt_indicator(indicators["sma20"]), inline=True)
+        embed.add_field(name="Volume Trend", value=indicators["volume_trend"], inline=True)
+        embed.set_image(url=f"attachment://{ticker}_{tf}_chart.png")
+        embed.set_footer(text="Data: CoinGecko | Chart: matplotlib")
+
+        await interaction.followup.send(embed=embed, file=file)
 
 
 async def setup(bot: commands.Bot):
