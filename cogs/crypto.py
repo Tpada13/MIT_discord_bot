@@ -16,6 +16,7 @@ from config import (
 )
 from services.claude_analyst import ClaudeAnalyst
 from services.coingecko import CoinGeckoClient
+from services.fear_greed import FearGreedClient
 from services.indicators import calculate_indicators
 
 _log = logging.getLogger(__name__)
@@ -100,10 +101,11 @@ def _build_market_rows(
 
 
 class CryptoCog(commands.Cog):
-    def __init__(self, bot: commands.Bot, coingecko: CoinGeckoClient, analyst: ClaudeAnalyst):
+    def __init__(self, bot: commands.Bot, coingecko: CoinGeckoClient, analyst: ClaudeAnalyst, fear_greed: FearGreedClient):
         self.bot = bot
         self.coingecko = coingecko
         self.analyst = analyst
+        self.fear_greed = fear_greed
 
     # -------------------------------------------------------------------------
     # /help
@@ -452,4 +454,4 @@ class CryptoCog(commands.Cog):
 
 async def setup(bot: commands.Bot):
     """Called by bot.load_extension('cogs.crypto')."""
-    await bot.add_cog(CryptoCog(bot, CoinGeckoClient(), ClaudeAnalyst()))
+    await bot.add_cog(CryptoCog(bot, bot.coingecko, bot.analyst, bot.fear_greed))
