@@ -23,6 +23,9 @@ class CryptoBot(commands.Bot):
     async def on_ready(self):
         print(f"Logged in as {self.user}")
 
+    async def on_message(self, message):
+        pass  # slash commands only — skip prefix processing to suppress missing-intent warning
+
 
 if __name__ == "__main__":
     load_dotenv()
