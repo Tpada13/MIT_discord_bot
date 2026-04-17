@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import discord
 import pytest
@@ -66,6 +66,28 @@ async def test_feargreed_color_extreme_greed():
 
     await cog.feargreed.callback(cog, interaction)
 
+    sent = interaction.followup.send.call_args
+    embed = sent.kwargs.get("embed") or sent.args[0]
+    assert embed.color == discord.Color.green()
+
+
+@pytest.mark.asyncio
+async def test_feargreed_color_fear():
+    cog = make_cog()
+    cog.fear_greed.get_current.return_value = fear_greed_data("Fear", value=25)
+    interaction = make_interaction()
+    await cog.feargreed.callback(cog, interaction)
+    sent = interaction.followup.send.call_args
+    embed = sent.kwargs.get("embed") or sent.args[0]
+    assert embed.color == discord.Color.red()
+
+
+@pytest.mark.asyncio
+async def test_feargreed_color_greed():
+    cog = make_cog()
+    cog.fear_greed.get_current.return_value = fear_greed_data("Greed", value=75)
+    interaction = make_interaction()
+    await cog.feargreed.callback(cog, interaction)
     sent = interaction.followup.send.call_args
     embed = sent.kwargs.get("embed") or sent.args[0]
     assert embed.color == discord.Color.green()
