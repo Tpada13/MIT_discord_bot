@@ -144,6 +144,11 @@ class CryptoCog(commands.Cog):
             value="All supported coins sorted by 24h % change",
             inline=False,
         )
+        embed.add_field(
+            name="/feargreed",
+            value="Crypto Fear & Greed Index (0–100 sentiment score)",
+            inline=False,
+        )
         embed.add_field(name="Supported Coins", value=coin_list, inline=False)
         embed.set_footer(text="Data: CoinGecko (free) | Analysis: Anthropic Claude")
         await interaction.response.send_message(embed=embed)
@@ -449,6 +454,45 @@ class CryptoCog(commands.Cog):
         )
         embed.add_field(name="\u200b", value=block, inline=False)
         embed.set_footer(text="Data: CoinGecko | Sorted by 24h % change")
+        await interaction.followup.send(embed=embed)
+
+    # -------------------------------------------------------------------------
+    # /feargreed
+    # -------------------------------------------------------------------------
+
+    @app_commands.command(name="feargreed", description="Crypto Fear & Greed Index (0–100 sentiment score)")
+    async def feargreed(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        try:
+            data = self.fear_greed.get_current()
+        except Exception as e:
+            await interaction.followup.send(f"❌ Fear & Greed error: {e}")
+            return
+
+        value = data["value"]
+        classification = data["classification"]
+
+        if classification in ("Extreme Fear", "Fear"):
+            color = discord.Color.red()
+        elif classification == "Neutral":
+            color = discord.Color.light_grey()
+        else:  # Greed, Extreme Greed
+            color = discord.Color.green()
+
+        embed = discord.Embed(
+            title="Crypto Fear & Greed Index",
+            color=color,
+            timestamp=datetime.now(timezone.utc),
+        )
+        embed.add_field(name="Score", value=str(value), inline=True)
+        embed.add_field(name="Classification", value=classification, inline=True)
+        embed.add_field(name="\u200b", value="\u200b", inline=True)
+        embed.add_field(
+            name="Previous Day",
+            value=f"{data['previous_value']} — {data['previous_classification']}",
+            inline=False,
+        )
+        embed.set_footer(text=f"Data: Alternative.me | Updated: {data['timestamp']}")
         await interaction.followup.send(embed=embed)
 
 
