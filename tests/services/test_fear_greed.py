@@ -25,12 +25,12 @@ SAMPLE_RESPONSE = {
         {
             "value": "23",
             "value_classification": "Extreme Fear",
-            "timestamp": "1713225600",
+            "timestamp": "1713139200",   # 2024-04-15 00:00:00 UTC
         },
         {
             "value": "18",
             "value_classification": "Extreme Fear",
-            "timestamp": "1713139200",
+            "timestamp": "1713052800",   # 2024-04-14 00:00:00 UTC
         },
     ]
 }

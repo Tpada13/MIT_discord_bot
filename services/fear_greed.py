@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 import requests
 
@@ -37,7 +37,7 @@ class FearGreedClient:
         yesterday = data[1]
 
         try:
-            ts = datetime.fromtimestamp(int(today["timestamp"]))
+            ts = datetime.fromtimestamp(int(today["timestamp"]), tz=timezone.utc)
             timestamp_str = ts.strftime("%Y-%m-%d")
             return {
                 "value": int(today["value"]),
