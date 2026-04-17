@@ -25,9 +25,13 @@ class FearGreedClient:
         try:
             response = requests.get(self.BASE_URL, params={"limit": 2}, timeout=10)
             response.raise_for_status()
-            payload = response.json()
-        except Exception as exc:
+        except requests.exceptions.RequestException as exc:
             raise RuntimeError(f"Fear & Greed API error: {exc}") from exc
+
+        try:
+            payload = response.json()
+        except ValueError as exc:
+            raise RuntimeError(f"Fear & Greed API response malformed: {exc}") from exc
 
         data = payload.get("data", [])
         if len(data) < 2:
