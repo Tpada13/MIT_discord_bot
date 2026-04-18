@@ -69,10 +69,13 @@ class WatchlistCog(commands.Cog):
 
     @watch.command(name="clear", description="Clear your entire watchlist")
     async def watch_clear(self, interaction: discord.Interaction):
-        self.watchlist.clear(interaction.user.id)
-        await interaction.response.send_message(
-            "✅ Your watchlist has been cleared.", ephemeral=True
-        )
+        try:
+            self.watchlist.clear(interaction.user.id)
+            await interaction.response.send_message(
+                "✅ Your watchlist has been cleared.", ephemeral=True
+            )
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Failed to clear watchlist: {e}", ephemeral=True)
 
     @watch.command(name="show", description="Show prices + indicators for your watchlist coins")
     async def watch_show(self, interaction: discord.Interaction):
