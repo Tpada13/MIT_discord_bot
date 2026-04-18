@@ -152,6 +152,11 @@ class CryptoCog(commands.Cog):
             inline=False,
         )
         embed.add_field(
+            name="/watch add|remove|show|clear",
+            value="Personal coin watchlist. `/watch show` displays price, RSI, SMA20, and volume trend for each coin.",
+            inline=False,
+        )
+        embed.add_field(
             name="/chart <coin> [timeframe]",
             value=f"Price + volume chart (PNG). Timeframes: {', '.join(ANALYSIS_TIMEFRAMES)} (default: {DEFAULT_ANALYSIS_TIMEFRAME})",
             inline=False,
