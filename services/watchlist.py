@@ -21,7 +21,7 @@ class WatchlistService:
         with open(self.path, "w") as f:
             json.dump(data, f)
 
-    def add(self, user_id: int, coin: str) -> None:
+    def add(self, user_id: int, coin: str) -> int:
         if coin not in SUPPORTED_COINS:
             raise ValueError(f"{coin} is not a supported coin.")
         data = self._read()
@@ -34,6 +34,7 @@ class WatchlistService:
         watchlist.append(coin)
         data[key] = watchlist
         self._write(data)
+        return len(watchlist)
 
     def remove(self, user_id: int, coin: str) -> None:
         data = self._read()

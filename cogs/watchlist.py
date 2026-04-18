@@ -47,8 +47,7 @@ class WatchlistCog(commands.Cog):
     @app_commands.choices(coin=[app_commands.Choice(name=k, value=k) for k in SUPPORTED_COINS])
     async def watch_add(self, interaction: discord.Interaction, coin: str):
         try:
-            self.watchlist.add(interaction.user.id, coin)
-            count = len(self.watchlist.get(interaction.user.id))
+            count = self.watchlist.add(interaction.user.id, coin)
             await interaction.response.send_message(
                 f"✅ {coin} added to your watchlist. ({count}/10 coins)", ephemeral=True
             )
