@@ -204,6 +204,9 @@ cython_debug/
 # Claude Code
 .claude/
 
+# Data directory (persistent storage, sensitive per-user data)
+data/
+
 # Superpowers docs (local planning artifacts)
 docs/superpowers/
 

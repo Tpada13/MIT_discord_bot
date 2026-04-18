@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from services.claude_analyst import ClaudeAnalyst
 from services.coingecko import CoinGeckoClient
 from services.fear_greed import FearGreedClient
+from services.watchlist import WatchlistService
 
 
 class CryptoBot(commands.Bot):
@@ -14,8 +15,10 @@ class CryptoBot(commands.Bot):
         self.coingecko = CoinGeckoClient()
         self.analyst = ClaudeAnalyst()
         self.fear_greed = FearGreedClient()
+        self.watchlist = WatchlistService()
         # Load the cog before syncing so commands are registered
         await self.load_extension("cogs.crypto")
+        await self.load_extension("cogs.watchlist")
         # Sync slash commands globally — takes up to 1 hour to propagate on first run
         await self.tree.sync()
         print("Slash commands synced.")
