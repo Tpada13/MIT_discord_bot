@@ -22,6 +22,7 @@ def test_add_duplicate(svc):
 
 def test_add_cap(svc):
     all_coins = list(SUPPORTED_COINS.keys())
+    assert len(all_coins) > 10, "SUPPORTED_COINS must have >10 entries for this test to be meaningful"
     for coin in all_coins[:10]:
         svc.add(1, coin)
     with pytest.raises(ValueError, match="full"):
