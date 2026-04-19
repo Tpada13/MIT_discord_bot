@@ -16,7 +16,7 @@ _log = logging.getLogger(__name__)
 def _build_watch_table(rows: list[dict]) -> str:
     header = (
         f"{'Coin':<4}  {'Price':>12}  {'24h%':>8}  "
-        f"{'RSI':>5}  {'SMA20':>12}  {'Trend':<7}  "
+        f"{'RSI':>5}  {'SMA20':>12}  {'Trend':<17}  "
         f"{'Δ$':>12}  {'Δ%':>8}"
     )
     sep = "─" * len(header)
@@ -41,7 +41,7 @@ def _build_watch_table(rows: list[dict]) -> str:
             dp_str = f"{'+' if delta_p >= 0 else ''}{delta_p:.2f}%"
         lines.append(
             f"{row['coin']:<4}  {price_str:>12}  {change_str:>8}  "
-            f"{rsi_str:>5}  {sma_str:>12}  {row['volume_trend']:<7}  "
+            f"{rsi_str:>5}  {sma_str:>12}  {row['volume_trend']:<17}  "
             f"{dd_str:>12}  {dp_str:>8}"
         )
     return "\n".join(lines)

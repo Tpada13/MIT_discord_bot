@@ -85,7 +85,7 @@ async def test_watch_show_coin_fetch_error():
     assert embeds is not None and len(embeds) == 1
     field_value = embeds[0].fields[0].value
     assert "❌" in field_value
-    assert "BTC" in field_value
+    assert "BTC" in field_value and "unavailable" in field_value
 
 
 @pytest.mark.asyncio
