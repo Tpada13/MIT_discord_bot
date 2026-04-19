@@ -65,5 +65,6 @@ class WatchlistService:
     def save_last_prices(self, user_id: int, prices: dict[str, float]) -> None:
         data = self._read()
         entry = self._user_entry(data, user_id)
-        entry["last_prices"].update(prices)
+        filtered = {coin: price for coin, price in prices.items() if coin in entry["coins"]}
+        entry["last_prices"].update(filtered)
         self._write(data)
