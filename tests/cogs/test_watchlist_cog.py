@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 import pytest
@@ -70,9 +70,10 @@ async def test_watch_show_empty_watchlist():
 
 @pytest.mark.asyncio
 async def test_watch_show_coin_fetch_error():
-    """When CoinGecko raises for a coin, a dark_grey error embed is included."""
+    """When CoinGecko raises for a coin, a single embed is sent containing ❌ unavailable."""
     cog = make_cog()
     cog.watchlist.get.return_value = ["BTC"]
+    cog.watchlist.get_last_prices.return_value = {}
     cog.coingecko.get_price_data.side_effect = Exception("API down")
     interaction = make_interaction()
 
@@ -80,9 +81,43 @@ async def test_watch_show_coin_fetch_error():
 
     interaction.followup.send.assert_awaited_once()
     call_args = interaction.followup.send.call_args
-    embeds = call_args.kwargs.get("embeds") or (call_args.args[0] if call_args.args else None)
+    embeds = call_args.kwargs.get("embeds")
     assert embeds is not None and len(embeds) == 1
-    assert embeds[0].color == discord.Color.dark_grey()
+    field_value = embeds[0].fields[0].value
+    assert "❌" in field_value
+    assert "BTC" in field_value
+
+
+@pytest.mark.asyncio
+async def test_watch_show_success():
+    """Successful fetch sends a single embed with a table containing the coin ticker."""
+    cog = make_cog()
+    cog.watchlist.get.return_value = ["BTC"]
+    cog.watchlist.get_last_prices.return_value = {"BTC": 83000.00}
+    cog.coingecko.get_price_data.return_value = {
+        "current_price": 84123.00,
+        "price_change_pct": 2.14,
+    }
+    cog.coingecko.get_market_chart.return_value = {
+        "close_prices": [80000.0] * 30,
+        "volumes": [1e9] * 30,
+    }
+    interaction = make_interaction()
+
+    with patch("cogs.watchlist.calculate_indicators") as mock_calc:
+        mock_calc.return_value = {
+            "rsi": 65.0,
+            "sma20": 81234.00,
+            "volume_trend": "Rising",
+        }
+        await cog.watch_show.callback(cog, interaction)
+
+    interaction.followup.send.assert_awaited_once()
+    call_args = interaction.followup.send.call_args
+    embeds = call_args.kwargs.get("embeds")
+    assert embeds is not None and len(embeds) == 1
+    field_value = embeds[0].fields[0].value
+    assert "BTC" in field_value
 
 
 @pytest.mark.asyncio
