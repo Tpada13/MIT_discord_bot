@@ -13,20 +13,38 @@ from services.watchlist import WatchlistService
 _log = logging.getLogger(__name__)
 
 
-def _rsi_label(rsi) -> str:
-    if rsi is None:
-        return "N/A"
-    if rsi >= 70:
-        return f"{rsi:.1f} ⚠️ Overbought"
-    if rsi <= 30:
-        return f"{rsi:.1f} ⚠️ Oversold"
-    return f"{rsi:.1f} Neutral"
-
-
-def _fmt_indicator(value: float | None, prefix: str = "$") -> str:
-    if value is None:
-        return "N/A"
-    return f"{prefix}{value:,.2f}"
+def _build_watch_table(rows: list[dict]) -> str:
+    header = (
+        f"{'Coin':<4}  {'Price':>12}  {'24h%':>8}  "
+        f"{'RSI':>5}  {'SMA20':>12}  {'Trend':<17}  "
+        f"{'Δ$':>12}  {'Δ%':>8}"
+    )
+    sep = "─" * len(header)
+    lines = [header, sep]
+    for row in rows:
+        if not row["ok"]:
+            lines.append(f"{row['coin']:<4}  ❌ unavailable")
+            continue
+        price_str = f"${row['price']:,.2f}"
+        arrow = "▲" if row["change_24h"] >= 0 else "▼"
+        change_str = f"{arrow}{abs(row['change_24h']):.2f}%"
+        rsi_str = f"{row['rsi']:.1f}" if row["rsi"] is not None else "N/A"
+        sma_str = f"${row['sma20']:,.2f}" if row["sma20"] is not None else "N/A"
+        delta_d = row["delta_dollar"]
+        delta_p = row["delta_pct"]
+        if delta_d is None:
+            dd_str = "—"
+            dp_str = "—"
+        else:
+            sign = "+" if delta_d >= 0 else "-"
+            dd_str = f"{sign}${abs(delta_d):,.2f}"
+            dp_str = f"{'+' if delta_p >= 0 else ''}{delta_p:.2f}%"
+        lines.append(
+            f"{row['coin']:<4}  {price_str:>12}  {change_str:>8}  "
+            f"{rsi_str:>5}  {sma_str:>12}  {row['volume_trend']:<17}  "
+            f"{dd_str:>12}  {dp_str:>8}"
+        )
+    return "\n".join(lines)
 
 
 class WatchlistCog(commands.Cog):
@@ -87,41 +105,70 @@ class WatchlistCog(commands.Cog):
             )
             return
 
-        embeds = []
-        for i, coin in enumerate(coins):
-            is_last = i == len(coins) - 1
+        last_prices = self.watchlist.get_last_prices(interaction.user.id)
+        rows = []
+        fetched_prices: dict[str, float] = {}
+        positive_count = 0
+        negative_count = 0
+
+        for coin in coins:
             try:
                 price_data = self.coingecko.get_price_data(coin, "24h")
                 chart_data = self.coingecko.get_market_chart(coin, 30)
                 indicators = calculate_indicators(chart_data["close_prices"], chart_data["volumes"])
 
-                change = price_data["price_change_pct"]
-                color = discord.Color.green() if change >= 0 else discord.Color.red()
-                arrow = "▲" if change >= 0 else "▼"
+                price = price_data["current_price"]
+                change_24h = price_data["price_change_pct"]
+                fetched_prices[coin] = price
 
-                embed = discord.Embed(
-                    title=f"{coin} — Watchlist",
-                    color=color,
-                    timestamp=datetime.now(timezone.utc),
-                )
-                embed.add_field(name="Current Price", value=f"${price_data['current_price']:,.4f}", inline=True)
-                embed.add_field(name="Change (24h)", value=f"{arrow} {abs(change):.2f}%", inline=True)
-                embed.add_field(name="\u200b", value="\u200b", inline=True)
-                embed.add_field(name="RSI (14)", value=_rsi_label(indicators["rsi"]), inline=True)
-                embed.add_field(name="SMA 20", value=_fmt_indicator(indicators["sma20"]), inline=True)
-                embed.add_field(name="Volume Trend", value=indicators["volume_trend"], inline=True)
-                if is_last:
-                    embed.set_footer(text="Data: CoinGecko")
-                embeds.append(embed)
+                prev = last_prices.get(coin)
+                if prev is not None:
+                    delta_dollar = price - prev
+                    delta_pct = ((price - prev) / prev) * 100
+                else:
+                    delta_dollar = None
+                    delta_pct = None
+
+                if change_24h > 0:
+                    positive_count += 1
+                elif change_24h < 0:
+                    negative_count += 1
+
+                rows.append({
+                    "ok": True,
+                    "coin": coin,
+                    "price": price,
+                    "change_24h": change_24h,
+                    "rsi": indicators["rsi"],
+                    "sma20": indicators["sma20"],
+                    "volume_trend": indicators["volume_trend"],
+                    "delta_dollar": delta_dollar,
+                    "delta_pct": delta_pct,
+                })
             except Exception as exc:
                 _log.warning("watch_show: failed to fetch %s: %r", coin, exc)
-                embeds.append(discord.Embed(
-                    title=f"{coin} — Watchlist",
-                    color=discord.Color.dark_grey(),
-                    description="❌ Data unavailable",
-                ))
+                rows.append({"ok": False, "coin": coin})
 
-        await interaction.followup.send(embeds=embeds, ephemeral=True)
+        if fetched_prices:
+            self.watchlist.save_last_prices(interaction.user.id, fetched_prices)
+
+        if positive_count > negative_count:
+            color = discord.Color.green()
+        elif negative_count > positive_count:
+            color = discord.Color.red()
+        else:
+            color = discord.Color.dark_grey()
+
+        table = _build_watch_table(rows)
+        embed = discord.Embed(
+            title="Your Watchlist",
+            color=color,
+            timestamp=datetime.now(timezone.utc),
+        )
+        embed.add_field(name="\u200b", value=f"```\n{table}\n```", inline=False)
+        embed.set_footer(text="Data: CoinGecko")
+
+        await interaction.followup.send(embeds=[embed], ephemeral=True)
 
 
 async def setup(bot: commands.Bot):
