@@ -1,8 +1,15 @@
+import logging
 import os
 
 import discord
 from discord.ext import commands
 from dotenv import load_dotenv
+
+# discord.py warns about message_content intent even for slash-command-only bots.
+# We intentionally don't use text commands, so this warning is irrelevant.
+logging.getLogger("discord.ext.commands.bot").addFilter(
+    type("_Filter", (logging.Filter,), {"filter": lambda self, r: "message content intent" not in r.getMessage()})()
+)
 
 from services.claude_analyst import ClaudeAnalyst
 from services.coingecko import CoinGeckoClient
